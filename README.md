@@ -77,7 +77,7 @@ Adafactor — memory-efficient and sparse-friendly
 Lion (optional) — sign-based update behaviour
 
 👤 Author
-
+Ramzi Amira
 Mohammed Abo Shukr
 M2 MMVAI — Université Paris-Saclay
 2025
