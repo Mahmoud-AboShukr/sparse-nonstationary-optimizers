@@ -103,7 +103,7 @@ def train(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--optimizer", type=str, required=True, help="sgd, adamw, adafactor, lion")
+    parser.add_argument("--optimizer", type=str, required=True, help="Options: sgd, adamw, lion, adafactor, galore, lamb, etc.")
     parser.add_argument("--steps", type=int, default=50, help="Number of VALID optimization steps")
     parser.add_argument("--batch_size", type=int, default=1, help="Keep this at 1 for 4GB VRAM")
     parser.add_argument("--accum_steps", type=int, default=8, help="Simulate larger batches (e.g. 8*1 = 8)")

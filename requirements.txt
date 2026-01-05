@@ -4,8 +4,17 @@ transformers
 datasets
 accelerate
 
-# Optimizers
+# --- Standard Optimizers ---
 lion-pytorch
+torch-optimizer       # For LAMB, AdaBound, etc.
+adabelief-pytorch     # For AdaBelief
+galore-torch          # For GaLore
+bitsandbytes          # For 8-bit Adam (Note: on Windows, might need specific setup)
+
+# --- Research Optimizers (Direct from GitHub) ---
+# These are too new for standard pip, so we pull from source
+git+https://github.com/zyushun/Adam-mini.git
+git+https://github.com/yangluo7/CAME.git
 
 # Data Processing & Math
 numpy
