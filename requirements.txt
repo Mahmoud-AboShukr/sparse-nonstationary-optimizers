@@ -1,0 +1,19 @@
+# Core AI Frameworks
+torch
+transformers
+datasets
+accelerate
+
+# Optimizers
+lion-pytorch
+
+# Data Processing & Math
+numpy
+pandas
+scikit-learn
+tqdm
+sentencepiece
+
+# Visualization
+matplotlib
+seaborn

@@ -1,0 +1,17 @@
+adam
+adam bit
+lamb
+lamb bit
+ada belief
+RMSProp
+adamem
+AdaGrad
+adadelta
+slamb
+CAME
+adam mini
+q-adam mini
+GaLore
+spam
+stable spam
+ZeRO
