@@ -102,8 +102,7 @@ def get_optimizer(model, args):
                 lr=lr, 
                 weight_decay=weight_decay,
                 model_sharding=False,
-                dim=n_embd, n_heads=n_head, n_kv_heads=n_query_groups,
-                use_quant=use_quant
+                dim=n_embd, n_heads=n_head, n_kv_heads=n_query_groups
             )
         except ImportError:
             raise ImportError("Adam-mini not found. Run: pip install git+https://github.com/zyushun/Adam-mini.git")
@@ -116,8 +115,8 @@ def get_optimizer(model, args):
     
     elif opt_name == "spam":
         try:
-            from .spam import SPAM
-            return SPAM(params, lr=lr, weight_decay=weight_decay)
+            from .spam import AdamW
+            return AdamW(params, lr=lr, weight_decay=weight_decay)
         except ImportError:
             raise ImportError("SPAM code missing. Download 'spam.py' to src/optimizers/")
 
@@ -135,12 +134,6 @@ def get_optimizer(model, args):
         except ImportError:
             raise ImportError("AdaMem code missing. Download 'adamem.py' to src/optimizers/")
             
-    elif opt_name == "slamb":
-        try:
-            from .slamb import SLAMB
-            return SLAMB(params, lr=lr, weight_decay=weight_decay)
-        except ImportError:
-            raise ImportError("SLAMB code missing. Download 'slamb.py' to src/optimizers/")
 
     else:
         raise ValueError(f"Unknown optimizer: {opt_name}")
