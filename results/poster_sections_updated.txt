@@ -1,0 +1,24 @@
+  \begin{exampleblock}{Key Results}
+
+    \section*{Key Results}
+
+\subsection*{Optimizer Ranking \& Performance}
+
+\begin{tabular}{@{}lp{0.8\linewidth}@{}}
+    \textbf{Rank} & \textbf{Optimizer Performance Summary} \\ \midrule
+    \textbf{1} & \textbf{AdaFactor (61.3/100)} — Overall winner balancing loss, sparsity, and convergence stability. \\
+    \textbf{2} & \textbf{Stable-SPAM (54.5/100)} — Exceptional sparsity (99.5\%) at the cost of parameter update stability. \\
+    \textbf{3} & \textbf{Lion (54.2/100)} — Strong sparse performance (98.2\%) with competitive loss convergence. \\ \midrule
+    \textbf{} & \textbf{AdaBelief} — Achieved best final loss (0.076) but lower sparsity (80.5\%). \\
+    \textbf{} & \textbf{SGD/LAMB} — Baselines underperformed as expected, failing to maintain sparsity. \\
+\end{tabular}
+
+  \end{exampleblock}
+
+  \begin{block}{Conclusion}
+
+    \textbf{AdaFactor} emerges as the optimal choice for balanced sparse, non-stationary training—achieving competitive loss convergence while maintaining high sparsity (97.9\%) with superior parameter stability. 
+
+While Stable-SPAM prioritizes extreme sparsity (99.5\%), its reduced stability characteristics make AdaFactor preferable for practical deployment. Traditional baselines like SGD fail to maintain sparsity, demonstrating that \textbf{adaptive sparse optimizers} should be prioritized over standard methods for future LLM training, especially on memory-constrained hardware.
+
+  \end{block}

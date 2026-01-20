@@ -3,8 +3,11 @@ import numpy as np
 import os
 from pathlib import Path
 
+# Change to results directory for file operations
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 # --- LOAD ALL OPTIMIZER LOGS ---
-logs_dir = "logs"
+logs_dir = "../logs"
 optimizers = {}
 
 for filename in os.listdir(logs_dir):
@@ -13,9 +16,9 @@ for filename in os.listdir(logs_dir):
         filepath = os.path.join(logs_dir, filename)
         try:
             optimizers[opt_name] = pd.read_csv(filepath)
-            print(f"✅ Loaded: {opt_name}")
+            print(f"[OK] Loaded: {opt_name}")
         except Exception as e:
-            print(f"⚠️ Failed to load {opt_name}: {e}")
+            print(f"[ERROR] Failed to load {opt_name}: {e}")
 
 print(f"\nTotal optimizers loaded: {len(optimizers)}\n")
 
@@ -71,14 +74,14 @@ print("TOP PERFORMERS BY CATEGORY")
 print("=" * 150)
 
 rankings = {
-    "🏆 Best Final Loss": rank_optimizers(results_df, "Final Loss", ascending=True),
-    "💰 Best Final Sparsity": rank_optimizers(results_df, "Final Sparsity (%)", ascending=False),
-    "⚡ Fastest Early Convergence": rank_optimizers(results_df, "Early convergence (at step 5)", ascending=True),
-    "🎯 Most Stable Loss": rank_optimizers(results_df, "Loss Stability (lower=better)", ascending=True),
-    "📊 Most Stable Updates": rank_optimizers(results_df, "Update Stability", ascending=True),
-    "🚀 Best Average Sparsity": rank_optimizers(results_df, "Avg Sparsity (%)", ascending=False),
-    "🔥 Highest Peak Sparsity": rank_optimizers(results_df, "Max Sparsity (%)", ascending=False),
-    "💭 Best Overall Loss Variance": rank_optimizers(results_df, "Loss Variance", ascending=True),
+    "[Best Final Loss]": rank_optimizers(results_df, "Final Loss", ascending=True),
+    "[Best Final Sparsity]": rank_optimizers(results_df, "Final Sparsity (%)", ascending=False),
+    "[Fastest Early Convergence]": rank_optimizers(results_df, "Early convergence (at step 5)", ascending=True),
+    "[Most Stable Loss]": rank_optimizers(results_df, "Loss Stability (lower=better)", ascending=True),
+    "[Most Stable Updates]": rank_optimizers(results_df, "Update Stability", ascending=True),
+    "[Best Average Sparsity]": rank_optimizers(results_df, "Avg Sparsity (%)", ascending=False),
+    "[Highest Peak Sparsity]": rank_optimizers(results_df, "Max Sparsity (%)", ascending=False),
+    "[Best Overall Loss Variance]": rank_optimizers(results_df, "Loss Variance", ascending=True),
 }
 
 for category, ranking_df in rankings.items():
@@ -91,24 +94,55 @@ print("\n" + "=" * 150)
 print("COMPOSITE SCORES (Multi-Metric Ranking)")
 print("=" * 150)
 
+# Robust normalization function using percentile-based scaling
+def robust_normalize(series, invert=False):
+    """
+    Normalize using percentile-based robust scaling to handle outliers and clustering.
+    Returns values in [0, 100] range. Avoids extreme 0s and 100s.
+    """
+    q25 = series.quantile(0.25)
+    q75 = series.quantile(0.75)
+    median = series.median()
+    iqr = q75 - q25
+    
+    # If no IQR variance, fall back to min-max with better handling
+    if iqr == 0:
+        min_val = series.min()
+        max_val = series.max()
+        if min_val == max_val:
+            return np.full(len(series), 50.0)  # All identical -> neutral
+        # If small range, spread out more gracefully
+        normalized = 50 + 40 * (series - median) / (max_val - min_val)
+    else:
+        # Robust z-score: (x - median) / IQR
+        robust_z = (series - median) / iqr
+        
+        # Invert for "lower is better" metrics
+        if invert:
+            robust_z = -robust_z
+        
+        # Use sigmoid-like mapping to avoid extreme values
+        # Tanh maps (-inf, inf) to (-1, 1), then scale to (5, 95)
+        normalized = 50 + 45 * np.tanh(robust_z / 2) / np.tanh(1)
+    
+    normalized = np.clip(normalized, 1, 99)  # Avoid pure 0 and 100
+    
+    return normalized
+
 # Normalize metrics to 0-100 scale for composite score
 composite_df = results_df[["Optimizer"]].copy()
 
 # Final Loss (lower is better, so invert)
-loss_norm = 100 * (1 - (results_df["Final Loss"] - results_df["Final Loss"].min()) / (results_df["Final Loss"].max() - results_df["Final Loss"].min()))
-composite_df["Loss Score"] = loss_norm
+composite_df["Loss Score"] = robust_normalize(results_df["Final Loss"], invert=True)
 
 # Final Sparsity (higher is better)
-sparsity_norm = 100 * (results_df["Final Sparsity (%)"] - results_df["Final Sparsity (%)"].min()) / (results_df["Final Sparsity (%)"].max() - results_df["Final Sparsity (%)"].min())
-composite_df["Sparsity Score"] = sparsity_norm
+composite_df["Sparsity Score"] = robust_normalize(results_df["Final Sparsity (%)"], invert=False)
 
 # Update Stability (lower drift is better, so invert)
-drift_norm = 100 * (1 - (results_df["Update Stability"] - results_df["Update Stability"].min()) / (results_df["Update Stability"].max() - results_df["Update Stability"].min()))
-composite_df["Stability Score"] = drift_norm
+composite_df["Stability Score"] = robust_normalize(results_df["Update Stability"], invert=True)
 
 # Loss Stability (lower variance is better)
-loss_var_norm = 100 * (1 - (results_df["Loss Stability (lower=better)"] - results_df["Loss Stability (lower=better)"].min()) / (results_df["Loss Stability (lower=better)"].max() - results_df["Loss Stability (lower=better)"].min()))
-composite_df["Convergence Score"] = loss_var_norm
+composite_df["Convergence Score"] = robust_normalize(results_df["Loss Stability (lower=better)"], invert=True)
 
 # Compute composite
 composite_df["OVERALL SCORE"] = (
@@ -127,8 +161,8 @@ results_df.to_csv("optimizer_analysis.csv", index=False)
 composite_sorted.to_csv("optimizer_composite_ranking.csv", index=False)
 
 print("\n" + "=" * 150)
-print("✅ Exported: optimizer_analysis.csv (full metrics)")
-print("✅ Exported: optimizer_composite_ranking.csv (composite scores)")
+print("[EXPORT] optimizer_analysis.csv (full metrics)")
+print("[EXPORT] optimizer_composite_ranking.csv (composite scores)")
 print("=" * 150)
 
 # --- INSIGHTS ---
@@ -141,12 +175,12 @@ best_sparsity = results_df.loc[results_df["Final Sparsity (%)"].idxmax()]
 best_stability = results_df.loc[results_df["Loss Stability (lower=better)"].idxmin()]
 best_composite = composite_sorted.iloc[0]
 
-print(f"\n🎯 Best Loss: {best_loss['Optimizer']} ({best_loss['Final Loss']:.4f})")
-print(f"💰 Best Sparsity: {best_sparsity['Optimizer']} ({best_sparsity['Final Sparsity (%)']:.1f}%)")
-print(f"🎪 Most Stable: {best_stability['Optimizer']} (std: {best_stability['Loss Stability (lower=better)']:.4f})")
-print(f"👑 Overall Winner: {best_composite['Optimizer']} (Score: {best_composite['OVERALL SCORE']:.1f}/100)")
+print(f"\n[Best Loss] {best_loss['Optimizer']} ({best_loss['Final Loss']:.4f})")
+print(f"[Best Sparsity] {best_sparsity['Optimizer']} ({best_sparsity['Final Sparsity (%)']:.1f}%)")
+print(f"[Most Stable] {best_stability['Optimizer']} (std: {best_stability['Loss Stability (lower=better)']:.4f})")
+print(f"[Overall Winner] {best_composite['Optimizer']} (Score: {best_composite['OVERALL SCORE']:.1f}/100)")
 
 # Top 3 overall
-print(f"\n🏅 Top 3 Overall Performers:")
+print(f"\n[Top 3 Overall Performers]")
 for idx, row in composite_sorted.head(3).iterrows():
     print(f"   {idx+1}. {row['Optimizer']:20s} - Score: {row['OVERALL SCORE']:6.1f} | Loss: {row['Loss Score']:5.1f} | Sparsity: {row['Sparsity Score']:5.1f}")

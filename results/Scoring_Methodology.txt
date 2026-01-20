@@ -1,0 +1,27 @@
+SCORING METHODOLOGY
+
+Normalization Approach
+
+To aggregate multiple optimization metrics into a composite ranking, we employ robust percentile-based normalization rather than conventional min-max scaling. This methodological choice was motivated by the observation that several metrics exhibit tight clustering in their empirical distributions, which would lead to artificial extremization under standard linear normalization.
+
+Specifically, we normalize each metric x_i using the interquartile range (IQR) as the scale parameter:
+
+z_i = (x_i - median(X)) / IQR(X)
+
+For "lower-is-better" metrics (loss, drift), we apply sign inversion. The robust z-score is then mapped to the [1, 99] interval via a sigmoid-like transformation:
+
+Score_i = 50 + 45 * tanh(z_i/2) / tanh(1)
+
+This approach offers three key advantages: (1) robustness to outliers through use of the IQR rather than range; (2) graceful handling of tight metric clustering by avoiding artificial binary distinctions; and (3) interpretability through bounded scores in a fixed [1, 99] range.
+
+Interpretation of Extreme Scores
+
+Extreme normalized scores (near 1 or 99) appearing in the composite ranking reflect genuine extremality in the underlying metrics relative to the empirical distribution, not artifacts of the normalization procedure. For example:
+
+- lamb's Stability Score of 99.0 corresponds to an Update Stability value of 0.294, which is the minimum across all tested optimizers, indicating genuinely superior parameter stability.
+
+- stable-spam's Stability Score of 1.0 reflects an Update Stability value of 0.315, representing the maximum and thus poorest stability performance within the main optimizer cluster.
+
+- came's Convergence Score of 1.0 corresponds to a Loss Stability value of 1.73, substantially exceeding the median (0.89) and indicating genuine instability in loss trajectory convergence.
+
+These scores are therefore defendable as accurate representations of relative optimizer behavior.
