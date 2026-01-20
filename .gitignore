@@ -5,8 +5,7 @@ venv/
 # Python cache
 __pycache__/
 
-# Logs and results
-results/
+
 
 # OS / editor junk (optional)
 .DS_Store
