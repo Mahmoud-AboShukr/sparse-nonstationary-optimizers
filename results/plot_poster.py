@@ -47,6 +47,7 @@ heroes = {
     "sgd": ("SGD (Baseline)", "#95a5a6", "--"),
     "adamw": ("AdamW (Standard)", "#3498db", "-"),
     "adafactor": ("Adafactor (Winner)", "#2ecc71", "-"),
+    "adabelief": ("AdaBelief (Efficient)", "#e74c3c", ":"),
     "lion": ("Lion (Sparse King)", "#9b59b6", "-"),
     "stable-spam": ("Stable-SPAM (New)", "#f1c40f", "-.")
 }
