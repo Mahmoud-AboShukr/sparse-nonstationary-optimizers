@@ -1,87 +1,94 @@
-Sparse and Non-Stationary Gradients in Large-Scale Language Model Optimization
+# Optimizer behaviour under sparse and changing gradients
 
-This research project investigates how different optimizers behave under sparse and non-stationary gradient regimes during the training of transformer-based language models (LMs). The aim is to build a diagnostic framework capable of revealing optimizer robustness, failure modes, and adaptation behaviour in realistic language modeling scenarios.
+An exploratory **17-optimizer language-model training comparison** by **Mahmoud Abo Shukr and Amira Ramzi**. The project examines training loss, near-zero gradient entries, and changes in gradient direction under a shared short-run protocol.
 
-📌 Project Overview
+**Scope:** the default experiment contains **50 optimizer updates**. It studies early training behaviour; it does not establish long-run convergence or a universal optimizer ranking.
 
-Large-scale language models frequently encounter two challenging gradient properties:
+## Inspect a result first
 
-Sparse gradients — Only a small subset of parameters are updated at each training step, especially in embedding layers and rare tokens.
+The repository includes [recorded CSV logs](logs) and [analysis artifacts](results). For example, the archived [AdamW seed-42 run](logs/adamw_seed42.csv) records:
 
-Non-stationary gradients — Gradient statistics drift over time as the optimization landscape evolves, making historical momentum and variance estimates potentially stale.
+| Update index | Recorded training loss | Near-zero gradient entries |
+| --- | --- | --- |
+| 0 | 10.8272 | 16.95% |
+| 20 | 3.0528 | 96.03% |
+| 45 | 0.2159 | 93.03% |
 
-Classical optimizers like SGD fail to cope with these dynamics. Adaptive optimizers such as AdamW, Adafactor, and Lion improve stability, but their behaviour under combined sparsity + drift has not been systematically analysed.
-This project fills that gap.
+These selected observations illustrate a short, fluctuating trajectory; they are not validation scores or a fresh reproduction. Consult the full CSV and revision caveat below before comparing optimizers.
 
-🎯 Research Objectives
+Each log records:
 
-Quantify gradient sparsity across different Transformer layers
+| Field | Meaning in the current implementation |
+| --- | --- |
+| `step` | Zero-based optimizer-update index |
+| `loss` | Training loss from the last microbatch at the logging point, rescaled after gradient accumulation |
+| `sparsity` | Percentage of gradient entries with absolute value below `1e-5` |
+| `drift` | Cosine similarity between the current gradient and its exponential moving-average history |
+| `time_sec` | Elapsed wall-clock time |
 
-Measure gradient drift and historical gradient aging
+Despite its name, `drift` is an alignment score: a smaller value means less directional agreement. The first value is initialised to 1.0. The history is updated at diagnostic logging points with EMA coefficient 0.9. Near-zero entries do not mean those parameters are permanently excluded from updates.
 
-Compare optimizer behaviour under identical training conditions
+```mermaid
+flowchart LR
+  D["WikiText-103 batches"] --> M["Randomly initialised GPT-style model"]
+  M --> G["Accumulated gradients"]
+  G --> O["One selected optimizer"]
+  G --> Q["Near-zero entries + directional alignment"]
+  O --> L["Training-loss trajectory"]
+  Q --> C["CSV logs and comparative analysis"]
+  L --> C
+```
 
-Identify which optimizers:
+## Protocol
 
-remain stable under sparse update regimes
+- GPT-style model configured in [src/models/gpt.py](src/models/gpt.py): 12 layers, embedding width 1,024, and 16 attention heads.
+- GPT-2 tokenizer and WikiText-103 data; sequence length 1,024.
+- Default seed 42, microbatch size 1, and 8 accumulation steps.
+- Default learning rate `5e-4`; diagnostics every 5 updates.
+- A 50-update run therefore logs indices 0, 5, …, 45.
 
-adapt efficiently to shifting gradient distributions
+The optimizer implementations and accepted names are defined in [src/optimizers/factory.py](src/optimizers/factory.py). They include SGD, Adam/AdamW, RMSprop, Adagrad, Adadelta, LAMB, AdaBelief, CAME, Adafactor, Lion, GaLore variants, Adam-mini, SPAM, Stable-SPAM, and AdaMem.
 
-accumulate stale momentum or variance estimates
+## Quick-start
 
-🏗️ Project Structure
-sparse_nonstationary_optimizers/
-│
-├── src/
-│   ├── data/          # dataset loaders (WikiText-103)
-│   ├── models/        # GPT-style transformer implementation
-│   ├── optimizers/    # AdamW, Adafactor, SGD, Lion wrappers
-│   ├── metrics/       # sparsity + non-stationarity diagnostic tools
-│   └── utils/         # helper functions
-│
-├── configs/           # experiment configuration files
-├── logs/              # raw metric output
-├── results/           # processed experimental outputs
-├── plots/             # visualizations and comparison graphs
-└── train.py           # main training entry point
+Use a CUDA-capable environment for the supplied mixed-precision training path. The current script uses CUDA autocast; CPU execution has not been validated.
 
-🚀 Getting Started
-1️⃣ Create and activate a virtual environment
+```bash
+git clone https://github.com/Mahmoud-AboShukr/sparse-nonstationary-optimizers.git
+cd sparse-nonstationary-optimizers
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python train.py --optimizer adamw --steps 50 --batch_size 1 --accum_steps 8 --lr 0.0005 --seed 42
+```
 
-2️⃣ Install dependencies
-pip install torch transformers datasets sentencepiece accelerate wandb
+The `--optimizer` argument is required. Internet access is needed for the tokenizer, dataset, and Git-based dependencies. Model, gradient, and optimizer-state memory requirements vary across optimizers; fitting one configuration does not guarantee that every optimizer fits the same GPU.
 
-3️⃣ Run a test experiment
-python train.py
+**A run overwrites `logs/<optimizer>_seed<seed>.csv`.** Copy the provided logs to a separate directory before reproducing experiments.
 
+## Inspect your output
 
-You should see a confirmation message indicating the experiment framework initialized successfully.
+```python
+import pandas as pd
 
-🧪 Experiments
+df = pd.read_csv("logs/adamw_seed42.csv")
+print(df[["step", "loss", "sparsity", "drift", "time_sec"]].tail())
+```
 
-This project evaluates optimizers along two core axes:
+## Scientific limits and reproducibility
 
-Property	Diagnostics
-Sparsity	Update frequency, embedding sparsity, parameter activation rate
-Non-stationarity	Gradient drift, vₜ statistics aging, layer-wise norm evolution
-Target Optimizers
+- Training loss is not held-out language-model quality. Short trajectories and hand-designed composite scores should not be read as a general ranking.
+- The same learning rate does not give every optimizer its best tuned setting.
+- A thresholded gradient statistic depends on gradient scale and the chosen threshold.
+- Archived logs and figures may reflect an earlier code revision. Record the commit, dependencies, hardware, and arguments for every new run.
+- The loader pads sequences with the EOS token and clones input IDs as labels. Review attention and padding-loss masking before using this as a definitive language-model benchmark.
+- A fresh full training reproduction was not performed as part of the documentation update.
 
-SGD + Momentum — baseline for failure under sparse gradients
+## Repository guide
 
-AdamW — industry standard
-
-Adafactor — memory-efficient and sparse-friendly
-
-Lion (optional) — sign-based update behaviour
-
-👤 Author
-Ramzi Amira
-Mohammed Abo Shukr
-M2 MMVAI — Université Paris-Saclay
-2025
-
-📄 License
-
-This repository is part of an academic research project. Redistribution is permitted with attribution.
+- [train.py](train.py): command-line experiment entry point.
+- [src/data/loader.py](src/data/loader.py): data loading.
+- [src/metrics/diagnostics.py](src/metrics/diagnostics.py): gradient-statistic definitions.
+- [logs](logs): archived runs.
+- [results](results) and [plots](plots): analysis and figures.
